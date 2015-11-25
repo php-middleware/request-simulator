@@ -7,18 +7,22 @@ use Psr\Http\Message\ServerRequestInterface;
 use Zend\Diactoros\Request\Serializer as RequestSerializer;
 use Zend\Diactoros\Response\HtmlResponse;
 use Zend\Diactoros\Response\Serializer as ResponseSerializer;
+use Zend\Diactoros\ServerRequest;
 
-class RequestSimulatorMiddleware
+final class RequestSimulatorMiddleware
 {
     const PARAM = 'simulated-request';
 
     public function __invoke(ServerRequestInterface $request, ResponseInterface $response, callable $next)
     {
-        $parsedBody = $request->getParsedBody();
+        if ($request->getMethod() === 'POST') {
+            $parsedBody = $this->parseBody($request->getBody());
 
-        if ($request->getMethod() === 'POST' && is_array($parsedBody) && isset($parsedBody[self::PARAM])) {
-            $requestToSimulate = $parsedBody[self::PARAM];
-            $request = RequestSerializer::fromString($requestToSimulate);
+            if (is_array($parsedBody) && isset($parsedBody[self::PARAM])) {
+                $requestToSimulate = $parsedBody[self::PARAM];
+                $deserializedRequest = RequestSerializer::fromString($requestToSimulate);
+                $request = new ServerRequest($request->getServerParams(), $request->getUploadedFiles(), $deserializedRequest->getUri(), $deserializedRequest->getMethod(), $deserializedRequest->getBody(), $deserializedRequest->getHeaders());
+            }
         }
 
         $requestAsString = RequestSerializer::toString($request);
@@ -30,6 +34,14 @@ class RequestSimulatorMiddleware
         $html = sprintf($this->getHtmlTemplate(), self::PARAM, $requestAsString, $responseAsString);
 
         return new HtmlResponse($html);
+    }
+
+    private function parseBody($body)
+    {
+        $params = [];
+        parse_str($body, $params);
+
+        return $params;
     }
 
     private function getHtmlTemplate()
