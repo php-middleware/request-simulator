@@ -1,0 +1,11 @@
+{
+    "name": "php-middleware/request-simulator",
+    "require": {
+        "zendframework/zend-diactoros": "1.*"
+    },
+    "autoload": {
+        "psr-4": {
+            "PhpMiddleware\\RequestSimulator\\": "src/"
+        }
+    }
+}
