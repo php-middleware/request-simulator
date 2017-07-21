@@ -2,18 +2,22 @@
 
 namespace PhpMiddleware\RequestSimulator;
 
-use Psr\Http\Message\ResponseInterface;
+use Interop\Http\ServerMiddleware\DelegateInterface;
+use Interop\Http\ServerMiddleware\MiddlewareInterface;
+use PhpMiddleware\DoublePassCompatibilityTrait;
 use Psr\Http\Message\ServerRequestInterface;
 use Zend\Diactoros\Request\Serializer as RequestSerializer;
 use Zend\Diactoros\Response\HtmlResponse;
 use Zend\Diactoros\Response\Serializer as ResponseSerializer;
 use Zend\Diactoros\ServerRequest;
 
-final class RequestSimulatorMiddleware
+final class RequestSimulatorMiddleware implements MiddlewareInterface
 {
+    use DoublePassCompatibilityTrait;
+
     const PARAM = 'simulated-request';
 
-    public function __invoke(ServerRequestInterface $request, ResponseInterface $response, callable $next)
+    public function process(ServerRequestInterface $request, DelegateInterface $delegate)
     {
         if ($request->getMethod() === 'POST') {
             $parsedBody = $this->parseBody($request->getBody());
@@ -27,9 +31,9 @@ final class RequestSimulatorMiddleware
 
         $requestAsString = RequestSerializer::toString($request);
 
-        $responseResult = $next($request, $response);
+        $response = $delegate->process($request);
 
-        $responseAsString = ResponseSerializer::toString($responseResult);
+        $responseAsString = ResponseSerializer::toString($response);
 
         $html = sprintf($this->getHtmlTemplate(), self::PARAM, $requestAsString, $responseAsString);
 
@@ -59,4 +63,5 @@ final class RequestSimulatorMiddleware
                 . '</body>'
                 . '</html>';
     }
+
 }
